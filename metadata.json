@@ -1,0 +1,6 @@
+{
+  "name": "Jolsel Firm — Multi-Agent Solana Trading Firm",
+  "description": "Production-grade multi-agent Solana trading firm and terminal with a 17-agent scoring pipeline across Discovery, Planning, Compliance, Executive, and Audit departments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
