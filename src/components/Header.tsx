@@ -114,7 +114,7 @@ export function Header({
         </div>
 
         {/* Navigation Bar */}
-        <nav className="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none">
+        <nav className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none px-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;

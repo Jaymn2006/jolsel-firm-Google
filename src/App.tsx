@@ -43,6 +43,14 @@ export default function App() {
   const [isAirdropModalOpen, setIsAirdropModalOpen] = useState(false);
   const [firmLive, setFirmLive] = useState(true);
   const [network, setNetwork] = useState<"devnet" | "mainnet-beta">("devnet");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((cur) => (cur === msg ? null : cur));
+    }, 4500);
+  };
 
   // Read URL query parameters for view routing (e.g. ?view=core, ?view=coin, ?view=leaderboard)
   useEffect(() => {
@@ -86,12 +94,13 @@ export default function App() {
             usdcBalance: 420.0,
           };
           setWalletState(newState);
+          showToast("Connected to browser Solana wallet: " + pubkey.slice(0, 4) + "..." + pubkey.slice(-4));
           return;
         } catch (e) {
           console.warn("Wallet connection rejected, continuing in Vault mode", e);
         }
       }
-      alert("No Solana browser wallet extension detected. Operating safely in Jolsel Firm Vault mode.");
+      showToast("No Solana browser wallet extension found. Operating safely in Jolsel Firm Vault mode.");
     } else {
       const newState: WalletState = {
         connected: true,
@@ -101,6 +110,7 @@ export default function App() {
         usdcBalance: 2500.0,
       };
       setWalletState(newState);
+      showToast("Switched to Jolsel Vault Demo Wallet.");
     }
   };
 
@@ -274,6 +284,21 @@ export default function App() {
             </div>
           </div>
         </footer>
+      )}
+
+      {/* In-app Toast Banner */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-6 z-50 flex items-center gap-3 rounded-lg border border-cyan-500/30 bg-[#0a1120]/95 px-4 py-3 text-sm text-slate-200 shadow-2xl backdrop-blur-md">
+          <div className="h-2 w-2 rounded-full bg-[#14F195] animate-pulse" />
+          <span>{toastMessage}</span>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="ml-2 text-slate-400 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );
