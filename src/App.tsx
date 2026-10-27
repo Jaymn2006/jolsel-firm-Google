@@ -14,7 +14,9 @@ import { Leaderboard } from "./components/game/Leaderboard";
 import { Profile } from "./components/game/Profile";
 import { CoinPage } from "./components/game/CoinPage";
 import { PerpsTerminal } from "./components/game/PerpsTerminal";
-import { GrokBotCompanion } from "./components/game/GrokBotCompanion";
+import { MysteryCrates } from "./components/game/MysteryCrates";
+import { LiveGlobe } from "./components/globe/LiveGlobe";
+import { JolsyBotCompanion } from "./components/game/JolsyBotCompanion";
 import { AirdropModal } from "./components/game/AirdropModal";
 import { Hero } from "./components/Hero";
 import { Departments } from "./components/Departments";
@@ -33,13 +35,20 @@ import {
   loadPlayerProfile,
   savePlayerProfile,
   claimStarterAirdrop,
+  registerOrUpdateRealTrader,
 } from "./lib/gameEconomy";
+import {
+  detectRealUserLocation,
+  getCachedUserLocation,
+  type UserGeoLocation,
+} from "./lib/location";
 import { type WhaleProfile } from "./lib/copytrade";
 
 export default function App() {
   const [activeView, setActiveView] = useState<NavView>("core");
   const [walletState, setWalletState] = useState<WalletState>(loadWalletState);
   const [player, setPlayer] = useState<PlayerProfile>(loadPlayerProfile);
+  const [userLocation, setUserLocation] = useState<UserGeoLocation | null>(getCachedUserLocation);
   const [isAirdropModalOpen, setIsAirdropModalOpen] = useState(false);
   const [firmLive, setFirmLive] = useState(true);
   const [network, setNetwork] = useState<"devnet" | "mainnet-beta">("devnet");
@@ -52,7 +61,35 @@ export default function App() {
     }, 4500);
   };
 
-  // Read URL query parameters for view routing (e.g. ?view=core, ?view=coin, ?view=leaderboard)
+  // Real-life Location Detection & Registration on Mount
+  useEffect(() => {
+    let isMounted = true;
+    async function initLocation() {
+      try {
+        const detected = await detectRealUserLocation();
+        if (isMounted) {
+          setUserLocation(detected);
+          // Register player to real active traders registry
+          registerOrUpdateRealTrader(player, walletState.address, detected);
+          // Update player region label
+          setPlayer((prev) => ({
+            ...prev,
+            region: `${detected.city}, ${detected.country}`,
+            latitude: detected.latitude,
+            longitude: detected.longitude,
+          }));
+        }
+      } catch (err) {
+        console.warn("Location detection issue:", err);
+      }
+    }
+    initLocation();
+    return () => {
+      isMounted = false;
+    };
+  }, [walletState.address]);
+
+  // Read URL query parameters for view routing
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -60,6 +97,8 @@ export default function App() {
     if (viewParam === "vault") setActiveView("vault");
     else if (viewParam === "terminal" || viewParam === "trade") setActiveView("terminal");
     else if (viewParam === "perps" || viewParam === "futures") setActiveView("perps");
+    else if (viewParam === "globe" || viewParam === "earth") setActiveView("globe");
+    else if (viewParam === "crates" || viewParam === "rewards") setActiveView("crates");
     else if (viewParam === "coin" || viewParam === "token") setActiveView("coin");
     else if (viewParam === "leaderboard" || viewParam === "ranks") setActiveView("leaderboard");
     else if (viewParam === "profile") setActiveView("profile");
@@ -76,7 +115,10 @@ export default function App() {
 
   useEffect(() => {
     savePlayerProfile(player);
-  }, [player]);
+    if (userLocation) {
+      registerOrUpdateRealTrader(player, walletState.address, userLocation);
+    }
+  }, [player, userLocation, walletState.address]);
 
   // Toggle Wallet Mode (Paper Vault Demo vs Real Browser Wallet)
   const toggleWalletMode = async () => {
@@ -95,6 +137,9 @@ export default function App() {
           };
           setWalletState(newState);
           showToast("Connected to browser Solana wallet: " + pubkey.slice(0, 4) + "..." + pubkey.slice(-4));
+          if (userLocation) {
+            registerOrUpdateRealTrader(player, pubkey, userLocation);
+          }
           return;
         } catch (e) {
           console.warn("Wallet connection rejected, continuing in Vault mode", e);
@@ -111,6 +156,9 @@ export default function App() {
       };
       setWalletState(newState);
       showToast("Switched to Jolsel Vault Demo Wallet.");
+      if (userLocation) {
+        registerOrUpdateRealTrader(player, newState.address, userLocation);
+      }
     }
   };
 
@@ -123,17 +171,32 @@ export default function App() {
     };
     setPlayer(newProfile);
     savePlayerProfile(newProfile);
+    showToast("Devnet Faucet: +1.0 SOL & +2,500 $JOLSEL credited to your wallet!");
   };
 
   // Trigger mirror trade when a whale is copied
   const handleMirrorTrade = (whale: WhaleProfile) => {
-    console.log(`Mirroring trade from ${whale.label}: ${whale.lastTrade.side} ${whale.lastTrade.symbol}`);
+    showToast(`Mirrored trade: ${whale.label} executed ${whale.lastTrade.side} on ${whale.lastTrade.symbol}`);
   };
 
   // Handle Starter Airdrop Claim
   const handleClaimAirdrop = () => {
     const updated = claimStarterAirdrop(player);
     setPlayer(updated);
+  };
+
+  const handleRefreshLocation = async () => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("jolsel_real_user_location_v2");
+      }
+      const loc = await detectRealUserLocation();
+      setUserLocation(loc);
+      registerOrUpdateRealTrader(player, walletState.address, loc);
+      showToast(`Detected location: ${loc.city}, ${loc.country} (${loc.source})`);
+    } catch {
+      showToast("Location refreshed with existing coordinates.");
+    }
   };
 
   return (
@@ -182,6 +245,21 @@ export default function App() {
           />
         )}
 
+        {activeView === "globe" && (
+          <LiveGlobe
+            player={player}
+            userLocation={userLocation}
+            walletAddress={walletState.address}
+          />
+        )}
+
+        {activeView === "crates" && (
+          <MysteryCrates
+            player={player}
+            setPlayer={setPlayer}
+          />
+        )}
+
         {activeView === "coin" && (
           <CoinPage
             player={player}
@@ -194,8 +272,7 @@ export default function App() {
         {activeView === "leaderboard" && (
           <Leaderboard
             player={player}
-            onNavigateToPerps={() => setActiveView("perps")}
-            onNavigateToCore={() => setActiveView("core")}
+            walletAddress={walletState.address}
           />
         )}
 
@@ -203,6 +280,10 @@ export default function App() {
           <Profile
             player={player}
             setPlayer={setPlayer}
+            walletState={walletState}
+            userLocation={userLocation}
+            onRefreshLocation={handleRefreshLocation}
+            onOpenAirdropModal={() => setIsAirdropModalOpen(true)}
           />
         )}
 
@@ -240,13 +321,10 @@ export default function App() {
         )}
       </main>
 
-      {/* Animated Grok AI Companion Bot */}
-      <GrokBotCompanion
+      {/* Animated Jolsy AI Companion Bot */}
+      <JolsyBotCompanion
         player={player}
         setPlayer={setPlayer}
-        activeTokenSymbol="CHICO"
-        winProbPct={78.4}
-        kellyFraction={0.082}
       />
 
       {/* Genesis Airdrop Modal */}
@@ -258,7 +336,7 @@ export default function App() {
       />
 
       {/* Compact Global Footer */}
-      {activeView !== "overview" && activeView !== "core" && (
+      {activeView !== "overview" && activeView !== "core" && activeView !== "globe" && (
         <footer className="border-t border-white/5 bg-[#03060e] px-4 py-3 text-center text-xs text-slate-500">
           <div className="mx-auto flex max-w-[1700px] flex-wrap items-center justify-between gap-2">
             <span>

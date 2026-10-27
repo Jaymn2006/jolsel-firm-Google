@@ -6,366 +6,338 @@
 import React, { useState } from "react";
 import {
   User,
-  Globe,
   Shield,
-  Bot,
+  Trophy,
   Flame,
-  Award,
+  Globe,
   Wallet,
-  Settings,
+  Zap,
   CheckCircle,
-  Save,
-  Volume2,
-  VolumeX,
-  Sparkles,
+  Copy,
   RefreshCw,
+  Sparkles,
+  Bot,
+  Volume2,
+  Gift,
+  Award,
+  Layers,
 } from "lucide-react";
-import {
-  type PlayerProfile,
-  savePlayerProfile,
-} from "../../lib/gameEconomy";
+import type { PlayerProfile } from "../../lib/gameEconomy";
+import type { WalletState } from "../../lib/wallet";
+import type { UserGeoLocation } from "../../lib/location";
+import { playSfx } from "../../lib/sound";
 
 interface ProfileProps {
   player: PlayerProfile;
   setPlayer: React.Dispatch<React.SetStateAction<PlayerProfile>>;
+  walletState: WalletState;
+  userLocation: UserGeoLocation | null;
+  onRefreshLocation?: () => void;
+  onOpenAirdropModal: () => void;
 }
 
-const REGION_OPTIONS = [
-  "USA (Miami, FL)",
-  "USA (New York, NY)",
-  "USA (California, SF)",
-  "UK (London)",
-  "Japan (Tokyo)",
-  "Singapore",
-  "Germany (Berlin)",
-  "UAE (Dubai)",
-  "Australia (Sydney)",
-  "South Korea (Seoul)",
-  "Brazil (São Paulo)",
-  "Canada (Toronto)",
+const AVATARS = [
+  { id: "jolsy", label: "Jolsy Cyber", icon: "🤖" },
+  { id: "sage", label: "Stochastic Sage", icon: "🧙‍♂️" },
+  { id: "degen", label: "Apex Trench Raider", icon: "🦁" },
+  { id: "cyberpunk", label: "Neon Scalper", icon: "⚡" },
+  { id: "doge", label: "Doge Quant", icon: "🐕" },
 ];
 
-const AVATAR_OPTIONS = [
-  { id: "grok", label: "Grok Cyber", icon: "🤖" },
-  { id: "sage", label: "Quantum Sage", icon: "🧙‍♂️" },
-  { id: "degen", label: "Solana Degen", icon: "🦁" },
-  { id: "cyberpunk", label: "Neon Runner", icon: "⚡" },
-  { id: "doge", label: "Diamond Doge", icon: "🐕" },
+const JOLSY_MODES = [
+  { id: "sarcastic_genius", label: "Sarcastic Genius", desc: "Sharp mathematical quips and probability roasts" },
+  { id: "hype_coach", label: "Hype Coach", desc: "Relentless positive reinforcement and momentum energy" },
+  { id: "grumpy_risk", label: "Grumpy Risk Officer", desc: "Strict margin warnings and anti-liquidation discipline" },
+  { id: "zen_master", label: "Zen Master", desc: "Equilibrium mindset, patience, and harmonic order flow" },
 ];
 
-export function Profile({ player, setPlayer }: ProfileProps) {
+export function Profile({
+  player,
+  setPlayer,
+  walletState,
+  userLocation,
+  onRefreshLocation,
+  onOpenAirdropModal,
+}: ProfileProps) {
   const [username, setUsername] = useState(player.username);
-  const [region, setRegion] = useState(player.region);
-  const [avatar, setAvatar] = useState(player.avatar);
-  const [riskTolerance, setRiskTolerance] = useState(player.riskTolerance);
-  const [grokPersonality, setGrokPersonality] = useState(player.grokPersonality);
-  const [soundEffects, setSoundEffects] = useState(player.soundEffects);
-  const [savedNotification, setSavedNotification] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const handleSavePreferences = (e: React.FormEvent) => {
-    e.preventDefault();
-    const updated: PlayerProfile = {
-      ...player,
-      username,
-      region,
-      avatar,
-      riskTolerance,
-      grokPersonality,
-      soundEffects,
-    };
-    setPlayer(updated);
-    savePlayerProfile(updated);
-    setSavedNotification(true);
-    setTimeout(() => setSavedNotification(false), 2500);
+  const handleCopyAddress = () => {
+    playSfx("click");
+    navigator.clipboard?.writeText(walletState.address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    playSfx("win");
+    const updated: PlayerProfile = {
+      ...player,
+      username: username.trim() || player.username,
+      region: userLocation ? `${userLocation.city}, ${userLocation.country}` : player.region,
+      latitude: userLocation?.latitude ?? player.latitude,
+      longitude: userLocation?.longitude ?? player.longitude,
+    };
+    setPlayer(updated);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 2500);
+  };
+
+  const xpNextLevel = player.level * 500;
+  const xpCurrentLevelProgress = player.xp % 500;
+  const progressPct = Math.min(100, Math.round((xpCurrentLevelProgress / 500) * 100));
+
   return (
-    <div className="mx-auto max-w-[1400px] p-4 sm:p-6 space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#14F195] to-[#9945FF] text-xl shadow-lg shadow-[#14F195]/20">
-            {AVATAR_OPTIONS.find((a) => a.id === player.avatar)?.icon || "🤖"}
+    <div className="mx-auto max-w-5xl space-y-6 pb-12">
+      {/* Profile Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+              PLAYER PROFILE & SETTINGS
+            </h1>
+            <span className="rounded-full bg-cyan-500/20 border border-cyan-500/40 px-2.5 py-0.5 text-[10px] font-mono font-bold text-cyan-300">
+              LEVEL {player.level}
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                {player.username}
-              </h1>
-              <span className="rounded-full bg-[#14F195]/20 border border-[#14F195]/30 px-2.5 py-0.5 text-xs font-mono font-bold text-[#14F195]">
-                Level {player.level} Trader
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5 font-sans">
-              <Globe className="h-3 w-3 text-cyan-400" />
-              <span>{player.region}</span>
-              <span>·</span>
-              <span className="font-mono text-slate-300">XP: {player.xp}</span>
-            </p>
-          </div>
+          <p className="mt-1 text-xs text-slate-400">
+            Manage your on-chain Devnet identity, detected real location, Jolsy copilot voice, and trading perks.
+          </p>
         </div>
 
-        {savedNotification && (
-          <div className="flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-3 py-1.5 text-xs font-bold text-emerald-300 animate-pulse">
+        {savedSuccess && (
+          <div className="flex items-center gap-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 px-3 py-1.5 text-xs font-bold text-emerald-300 animate-in fade-in">
             <CheckCircle className="h-4 w-4" />
-            <span>Preferences saved successfully!</span>
+            <span>Profile Saved!</span>
           </div>
         )}
       </div>
 
-      {/* Grid: Player Stats + Profile Customization */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Stats & Trophy Cabinet (5 cols) */}
-        <div className="space-y-4 lg:col-span-5">
-          {/* Card: Balances */}
-          <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl shadow-2xl space-y-3">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <span className="text-xs uppercase font-mono tracking-wider text-slate-400">
-                In-Game Vault Balances
-              </span>
-              <Wallet className="h-4 w-4 text-[#14F195]" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <div className="rounded-xl bg-slate-950/70 p-3 border border-white/5">
-                <span className="text-[10px] uppercase font-mono text-slate-400">JOLSEL Token</span>
-                <p className="mt-1 font-mono text-lg font-bold text-amber-300">
-                  {player.jolselBalance.toLocaleString()}
-                </p>
-                <span className="text-[10px] text-slate-500">In-game governance</span>
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Player Identity Card */}
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl shadow-2xl flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/20 to-[#14F195]/20 border border-[#14F195]/40 text-3xl shadow-lg">
+                {player.avatar === "jolsy" ? "🤖" : player.avatar === "sage" ? "🧙‍♂️" : player.avatar === "degen" ? "🦁" : "⚡"}
               </div>
-              <div className="rounded-xl bg-slate-950/70 p-3 border border-white/5">
-                <span className="text-[10px] uppercase font-mono text-slate-400">Devnet SOL</span>
-                <p className="mt-1 font-mono text-lg font-bold text-[#14F195]">
-                  {player.devnetSolBalance.toFixed(3)} SOL
-                </p>
-                <span className="text-[10px] text-slate-500">Gas & collateral</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card: Performance Metrics */}
-          <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl shadow-2xl space-y-3">
-            <span className="text-xs uppercase font-mono tracking-wider text-slate-400">
-              Combat & Trading Metrics
-            </span>
-
-            <div className="grid grid-cols-3 gap-2 pt-1 font-mono text-center">
-              <div className="rounded-xl bg-slate-950/70 p-2.5 border border-white/5">
-                <span className="text-[10px] text-slate-400">Total Trades</span>
-                <p className="text-base font-bold text-white mt-0.5">{player.totalTrades}</p>
-              </div>
-              <div className="rounded-xl bg-slate-950/70 p-2.5 border border-white/5">
-                <span className="text-[10px] text-slate-400">Win Rate</span>
-                <p className="text-base font-bold text-emerald-400 mt-0.5">
-                  {player.totalTrades > 0 ? ((player.winCount / player.totalTrades) * 100).toFixed(0) : 75}%
-                </p>
-              </div>
-              <div className="rounded-xl bg-slate-950/70 p-2.5 border border-white/5">
-                <span className="text-[10px] text-slate-400">Current Streak</span>
-                <p className="text-base font-bold text-amber-300 mt-0.5">🔥 {player.winStreak}W</p>
+              <div>
+                <h2 className="text-lg font-bold text-white">{player.username}</h2>
+                <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+                  <Globe className="h-3 w-3 text-cyan-400 shrink-0" />
+                  <span className="truncate">{userLocation ? `${userLocation.city}, ${userLocation.country}` : player.region}</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-between items-center rounded-xl bg-slate-950/70 p-3 border border-white/5 font-mono text-xs">
-              <span className="text-slate-400">All-Time Net PnL:</span>
-              <span className="font-bold text-emerald-400 text-sm">
-                +${player.totalPnlUsd.toFixed(2)} USD
-              </span>
+            {/* Level & XP Bar */}
+            <div className="mt-6 rounded-xl bg-slate-950/60 p-3.5 border border-white/5 space-y-2">
+              <div className="flex justify-between text-xs font-mono">
+                <span className="text-slate-400">Experience Points (XP)</span>
+                <span className="text-[#14F195] font-bold">{player.xp} XP</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-[#14F195] transition-all duration-500"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                <span>Tier: {player.level >= 5 ? "Diamond Hands" : player.level >= 3 ? "Kelly Scalper" : "Novice Cadet"}</span>
+                <span>{500 - xpCurrentLevelProgress} XP to Level {player.level + 1}</span>
+              </div>
             </div>
-          </div>
 
-          {/* Card: Badges Cabinet */}
-          <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl shadow-2xl space-y-3">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <span className="text-xs uppercase font-mono tracking-wider text-slate-400">
-                Unlocked Badges & Achievements
-              </span>
-              <Award className="h-4 w-4 text-amber-400" />
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              {player.badges.map((badge) => (
-                <span
-                  key={badge}
-                  className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 font-mono text-[10px] font-bold text-amber-300 flex items-center gap-1"
+            {/* Wallet Address & Balance */}
+            <div className="mt-4 rounded-xl bg-slate-950/60 p-3.5 border border-white/5 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-mono text-[11px]">Devnet Wallet</span>
+                <button
+                  type="button"
+                  onClick={handleCopyAddress}
+                  className="flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 font-mono transition"
                 >
-                  <Sparkles className="h-3 w-3" />
-                  <span>{badge.replace(/_/g, " ")}</span>
-                </span>
-              ))}
+                  <Copy className="h-3 w-3" />
+                  <span>{copied ? "Copied" : "Copy"}</span>
+                </button>
+              </div>
+              <div className="font-mono text-xs text-slate-200 break-all bg-black/40 p-2 rounded-lg border border-white/5">
+                {walletState.address}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 font-mono">
+                <div>
+                  <div className="text-[10px] text-slate-400">In-Game $JOLSEL</div>
+                  <div className="font-bold text-amber-300">{player.jolselBalance.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400">Devnet SOL</div>
+                  <div className="font-bold text-[#14F195]">{player.devnetSolBalance.toFixed(4)} SOL</div>
+                </div>
+              </div>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={onOpenAirdropModal}
+            className="mt-6 flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/15 py-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/25 transition"
+          >
+            <Gift className="h-4 w-4" />
+            <span>Open Genesis Airdrop Faucet</span>
+          </button>
         </div>
 
-        {/* Right Column: Preferences Form (7 cols) */}
-        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 sm:p-6 backdrop-blur-xl shadow-2xl lg:col-span-7">
-          <div className="border-b border-white/10 pb-3 mb-5">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Settings className="h-4 w-4 text-cyan-400" />
-              <span>Player Customization & Preferences</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Configure your regional location, trading profile, and Grok bot parameters.
-            </p>
-          </div>
+        {/* Right 2 Columns: Edit Form & Settings */}
+        <div className="lg:col-span-2 space-y-6">
+          <form onSubmit={handleSave} className="rounded-2xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl shadow-2xl space-y-5">
+            <h3 className="font-bold text-white text-sm uppercase tracking-wider font-mono">
+              Identity Configuration
+            </h3>
 
-          <form onSubmit={handleSavePreferences} className="space-y-4">
-            {/* Player Username */}
+            {/* Username Input */}
             <div>
-              <label className="block text-xs font-mono uppercase text-slate-300 mb-1.5">
-                Player Callsign / Username
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Player Handle / Trader Call-Sign
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-xs text-white focus:border-[#14F195] focus:outline-none font-mono"
-                placeholder="e.g. SatoshiWhale_01"
-                required
+                maxLength={24}
+                className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2 text-xs font-medium text-white focus:border-[#14F195] focus:outline-none transition"
               />
             </div>
 
-            {/* Region / Country */}
+            {/* Avatar Selection */}
             <div>
-              <label className="block text-xs font-mono uppercase text-slate-300 mb-1.5">
-                Location & Region (Fulfills Localized User Preference)
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Select Visual Avatar
               </label>
-              <select
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-2.5 text-xs text-white focus:border-[#14F195] focus:outline-none font-mono"
-              >
-                {REGION_OPTIONS.map((reg) => (
-                  <option key={reg} value={reg}>
-                    {reg}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Avatar Selector */}
-            <div>
-              <label className="block text-xs font-mono uppercase text-slate-300 mb-1.5">
-                Player Avatar Emblem
-              </label>
-              <div className="grid grid-cols-5 gap-2">
-                {AVATAR_OPTIONS.map((av) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {AVATARS.map((av) => (
                   <button
                     key={av.id}
                     type="button"
-                    onClick={() => setAvatar(av.id)}
-                    className={`flex flex-col items-center justify-center rounded-xl p-2.5 text-center transition border ${
-                      avatar === av.id
-                        ? "border-[#14F195] bg-[#14F195]/15 text-white shadow-md shadow-[#14F195]/20"
-                        : "border-white/10 bg-slate-950 text-slate-400 hover:border-white/20"
+                    onClick={() => setPlayer((prev) => ({ ...prev, avatar: av.id }))}
+                    className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs transition cursor-pointer ${
+                      player.avatar === av.id
+                        ? "border-[#14F195] bg-[#14F195]/15 text-white font-bold"
+                        : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
                     }`}
                   >
-                    <span className="text-xl mb-1">{av.icon}</span>
-                    <span className="text-[10px] font-mono leading-tight">{av.label}</span>
+                    <span className="text-lg">{av.icon}</span>
+                    <span className="truncate">{av.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Risk Tolerance Profile */}
+            {/* Real Location Status & GPS */}
             <div>
-              <label className="block text-xs font-mono uppercase text-slate-300 mb-1.5">
-                Risk Appetite & Calculus Modeling
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { id: "calculus_whale", label: "Kelly Optimal", desc: "Mathematical sizing" },
-                  { id: "balanced", label: "Balanced", desc: "5-10% sizing" },
-                  { id: "conservative", label: "Conservative", desc: "Max 3% size" },
-                  { id: "degen", label: "Full Degen", desc: "Max leverage" },
-                ].map((mode) => (
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-slate-300">
+                  Real Location Detection (Live Earth Sync)
+                </label>
+                {onRefreshLocation && (
                   <button
-                    key={mode.id}
                     type="button"
-                    onClick={() => setRiskTolerance(mode.id as PlayerProfile["riskTolerance"])}
-                    className={`rounded-xl p-2.5 text-left border transition ${
-                      riskTolerance === mode.id
-                        ? "border-cyan-400 bg-cyan-500/15 text-white"
-                        : "border-white/10 bg-slate-950 text-slate-400 hover:border-white/20"
-                    }`}
+                    onClick={() => {
+                      playSfx("scan");
+                      onRefreshLocation();
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-[#14F195] hover:underline transition"
                   >
-                    <p className="font-mono text-xs font-bold">{mode.label}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{mode.desc}</p>
+                    <RefreshCw className="h-3 w-3" />
+                    <span>Re-detect GPS/IP</span>
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Grok Bot Companion Personality */}
-            <div>
-              <label className="block text-xs font-mono uppercase text-slate-300 mb-1.5">
-                Grok AI Bot Companion Voice
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: "sarcastic_genius", label: "Sarcastic Genius", icon: "😏" },
-                  { id: "hype_coach", label: "Hype Coach", icon: "🚀" },
-                  { id: "grumpy_risk", label: "Zero-Tolerance Grumpy", icon: "🧐" },
-                  { id: "zen_master", label: "Zen Master", icon: "🧘‍♂️" },
-                ].map((mode) => (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => setGrokPersonality(mode.id as PlayerProfile["grokPersonality"])}
-                    className={`flex items-center gap-2 rounded-xl p-2.5 text-left border transition ${
-                      grokPersonality === mode.id
-                        ? "border-purple-400 bg-purple-500/15 text-white"
-                        : "border-white/10 bg-slate-950 text-slate-400 hover:border-white/20"
-                    }`}
-                  >
-                    <span className="text-lg">{mode.icon}</span>
-                    <span className="font-mono text-xs font-bold">{mode.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Audio Toggle */}
-            <div className="flex items-center justify-between rounded-xl bg-slate-950 p-3 border border-white/5">
-              <div className="flex items-center gap-2">
-                {soundEffects ? (
-                  <Volume2 className="h-4 w-4 text-[#14F195]" />
-                ) : (
-                  <VolumeX className="h-4 w-4 text-slate-500" />
                 )}
-                <div>
-                  <p className="text-xs font-bold text-white">Audio & Trade Effects</p>
-                  <p className="text-[10px] text-slate-400">Play acoustic confirmation on fills and liquidation alerts</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-slate-950 p-3 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Detected City & Country:</span>
+                  <span className="font-semibold text-cyan-300">
+                    {userLocation ? `${userLocation.city}, ${userLocation.country}` : player.region}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Coordinates:</span>
+                  <span className="font-mono text-[11px] text-slate-300">
+                    {userLocation ? `${userLocation.latitude.toFixed(4)}°, ${userLocation.longitude.toFixed(4)}°` : "Auto-detected"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Detection Method:</span>
+                  <span className="font-mono text-[11px] text-[#14F195]">
+                    {userLocation?.source === "browser-gps" ? "Precise GPS" : "IP Geolocation API"}
+                  </span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setSoundEffects(!soundEffects)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-                  soundEffects ? "bg-[#14F195]" : "bg-slate-800"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                    soundEffects ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
+            </div>
+
+            {/* Jolsy AI Copilot Voice & Personality */}
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Jolsy AI Copilot Personality
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {JOLSY_MODES.map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => {
+                      playSfx("click");
+                      setPlayer((prev) => ({ ...prev, jolsyPersonality: mode.id as PlayerProfile["jolsyPersonality"] }));
+                    }}
+                    className={`flex flex-col text-left rounded-xl border p-2.5 text-xs transition cursor-pointer ${
+                      player.jolsyPersonality === mode.id
+                        ? "border-cyan-400 bg-cyan-500/15 text-white"
+                        : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="font-bold text-slate-200">{mode.label}</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">{mode.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Unlocked Perks from Mystery Crates */}
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Active Mystery Crate Perks
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {(player.unlockedPerks && player.unlockedPerks.length > 0) ? (
+                  player.unlockedPerks.map((perk, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300 font-mono"
+                    >
+                      <Sparkles className="h-3 w-3 text-amber-400" />
+                      <span>{perk.replace(/_/g, " ")}</span>
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-500 italic">
+                    No perks unlocked yet. Open Mystery Crates in the top menu to discover rare trading boosts!
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Save Button */}
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#14F195] py-3 text-xs font-extrabold text-slate-950 hover:bg-[#14F195]/90 shadow-lg shadow-[#14F195]/20 transition"
+              className="w-full rounded-xl bg-[#14F195] py-2.5 text-xs font-extrabold text-slate-950 hover:bg-[#14F195]/90 transition shadow-lg shadow-[#14F195]/20 cursor-pointer"
             >
-              <Save className="h-4 w-4" />
-              <span>Save Profile & Sync Preferences</span>
+              Save Profile Changes
             </button>
           </form>
         </div>
-
       </div>
     </div>
   );
